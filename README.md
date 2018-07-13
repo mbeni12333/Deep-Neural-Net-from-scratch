@@ -1,2 +1,2 @@
-# image-classifier
-A tensorflow image classifier
+# Deep Neural network from scratch
+using numpy
