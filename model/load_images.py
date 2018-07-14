@@ -3,7 +3,7 @@ import os, os.path
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.datasets as sk
-import sys
+
 plt.style.use("ggplot")
 def cut_square(img):
     return
