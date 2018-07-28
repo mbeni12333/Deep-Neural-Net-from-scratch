@@ -25,6 +25,52 @@ def initialize_parameters(layer_dims, debug=False):
     # return the dictionary
     return params
 
+def initialize_Adam(nb_layer, parameters):
+
+    v = {}
+    s = {}
+
+    for i in range(nb_layer):
+
+        v["W" + str(i)] = np.zeros_like(parameters["W" + str(i)])
+        v["b" + str(i)] = np.zeros_like(parameters["b" + str(i)])
+        v["u" + str(i)] = np.zeros_like(parameters["u" + str(i)])
+        v["g" + str(i)] = np.zeros_like(parameters["g" + str(i)])
+        s["W" + str(i)] = np.zeros_like(parameters["W" + str(i)])
+        s["b" + str(i)] = np.zeros_like(parameters["b" + str(i)])
+        s["u" + str(i)] = np.zeros_like(parameters["u" + str(i)])
+        s["g" + str(i)] = np.zeros_like(parameters["g" + str(i)])
+
+    return v, s
+
+def compute_cost(AL, Y, parameters, nbLayers, lambd=0):
+    """
+    This function calculate the cost given the last layer activation and
+        actual labels
+
+    :param AL: last layer activation
+    :param Y: the expected output
+    :param parameters: dictionary containing all the parameters
+    :param nbLayers: number of layers
+    :param lambd: lambda for l2 regularization
+    :return: the cost
+    """
+    m = Y.shape[1]
+    print(f"m = {m}")
+    L2Reg = lambd / m *\
+            np.sum(np.array([(np.sum(np.square(parameters["W" + str(i)]))) for i in range(1, nbLayers)]))
+
+    log_sum = np.sum(np.multiply(Y, np.log(AL)))
+
+    cost = (-1./m) * log_sum + L2Reg
+    # convert to a more convinient object
+    cost = np.squeeze(cost)
+    ### debug
+    assert(cost.shape == ())
+
+    # return the cost
+    return cost
+
 def random_permutation(X, Y, minibatch_size=128, debug=False):
     """
     This function takes for parameter some data and it returnes a list of
@@ -81,7 +127,6 @@ def random_permutation(X, Y, minibatch_size=128, debug=False):
 
     # return the full list of minibatches
     return minibatches
-
 
 def sigmoid(Z):
     """
@@ -180,6 +225,71 @@ def linear_backward(dZ, cache):
 
     # return the hole thing
     return dA_prev, dW, db
+
+def linear_activation_backward(dA, cache, activation='relu'):
+    """
+    This function calculates teh derivative block activation and linear
+
+    :param dA: gradient of the next activation
+    :param cache: linear and activation cache
+    :param activation: string denoting the type of the activation
+    :return: dA_prev, dW, db
+    """
+    #unpaking cache
+    linear_cache, activation_cache = cache
+
+    # use the appropriate activation backward module
+    if activation == "relu":
+        dZ = relu_backward(dA, activation_cache)
+    elif activation == "sigmoid":
+        dZ = sigmoid_backward(dA, activation_cache)
+    else:
+        print("not implemented exception")
+    # use the linear backward module
+    dA_prev, dW, db = linear_backward(dZ, linear_cache)
+
+    # returning the gradients
+
+    return dA_prev, dW, db
+
+def linear_activation_forward(A_prev, W, b,  activation='relu'):
+    """
+    This function calculate everything for a layer
+
+    :param A_prev: previous a
+    :param W: weight
+    :param b: bias
+    :param activation: str
+    :return: A, cache
+    """
+    Z, linear_cache = linear_forwrd(A_prev, W, b)
+
+    if activation == 'relu':
+        A, activation_cache = relu(Z)
+    elif activation == 'sigmoid':
+        A, activation_cache = sigmoid(Z)
+
+    cache = linear_cache, activation_cache
+
+    return A, cache
+
+def linear_forwrd(A_prev, W, b):
+    """
+    This function calculates linear activation of the layer
+
+    :param A_prev: previous activation
+    :param W: weight current layer
+    :param b: bias current layer
+    :return: Z and the cache of current layer
+    """
+    # linear operation
+    Z = W.dot(A_prev) + b
+    # store the cache , will be usefull later
+    cache = (A_prev, W, b)
+
+    #return the stuff
+    return Z, cache
+
 if __name__ == "__main__":
 
     np.random.seed(0)
@@ -202,12 +312,35 @@ if __name__ == "__main__":
 
 
     #linear backward test cases
-    b = np.random.randn(5, 1)
-    w = np.random.randn(5,4)
-    A = np.random.randn(4,100)
-    dZ = np.random.randn(5,100)
+    #b = np.random.randn(5, 1)
+    #w = np.random.randn(5,4)
+    #A = np.random.randn(4,100)
+    #dZ = np.random.randn(5,100)
 
-    cache = (A, w, b)
+    #cache = (A, w, b)
 
-    dA, dW, db = linear_backward(dZ, cache)
-    print(f"dA = \n{dA}, \ndW = \n{dW},\ndb = \n{db}")
+    #dA, dW, db = linear_backward(dZ, cache)
+    #print(f"dA = \n{dA}, \ndW = \n{dW},\ndb = \n{db}")
+
+    ##linear activation backward test cases
+    #b = np.random.randn(5, 1)
+    #w = np.random.randn(5,4)
+    #A_prev = np.random.randn(4,100)
+    #A = np.random.randn(5,100)
+    #dZ = np.random.randn(5,100)
+
+    #linear_cache = (A_prev, w, b)
+    #activation_cache = dZ
+    #cache = linear_cache, activation_cache
+
+    #dA, dW, db = linear_activation_backward(A, cache)
+    #print(f"dA = \n{dA}, \ndW = \n{dW},\ndb = \n{db}")
+
+    # test case for compting cost
+
+    #AL = np.array([[0.99]])
+    #Y  = np.array([[1]])
+
+    #cost = compute_cost(AL, Y, {"W1":np.random.randn(5,2), "W2":np.random.randn(1,5)}, nbLayers=3)
+
+    #print(f"Cost is {cost}, AL shape = {AL.shape}")

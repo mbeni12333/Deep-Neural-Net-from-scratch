@@ -1,74 +1,88 @@
-import math
-import numpy as np
-
-from . import utills
-
+from .utills import *
 
 class model(object):
     """
-        put ome tet in here
+        This model creates a L layer Neural Network
+
     """
 
     def __init__(self, X, Y, layers_dims=[1], learning_rate=0.1,
-                 beta1=0.9, beta2=0.99, learning_rate_decay=1,
-                 batch_size=64, epoch=3000, lambd=0,
+                 beta1=0.9, beta2=0.99,batch_size=64, epoch=3000, lambd=0,
                  epsilon=1e-7, keep_fact=1, debug=False,
                  log_file='', load_weights=''):
-        self.learning_rate = learning_rate
+        """
+        This function initializes all attributes of this model
+
+        :param X: training data
+        :param Y: training data labels
+        :param layers_dims: list of number unit par layer
+        :param learning_rate: rate of learning during gradient descent
+        :param beta1: momentum, rmsprop factor
+        :param beta2: adam factor
+        :param batch_size: size of bacthe
+        :param epoch: number of training episodes
+        :param lambd: L2 regularization
+        :param epsilon: small number to avoid dividing by zero
+        :param keep_fact: dropout regularization , list of percentage of keep for each layer
+        :param debug: debug
+        :param log_file: where to save logs
+        :param load_weights: path to save model to
+        """
+
+
+        # architecture
         self.layer_dims = layers_dims.insert(0, X.shape[0])
         self.nb_layer = len(layers_dims)
         self.batch_size = batch_size
-        self.nb_minibatches = int(math.floor(X.shape[1] / self.batch_size))
-        self.parameters = self.initialize_parameters(layers_dims)
         self.nb_epoch = epoch
+        # learnable parameters
+        self.parameters = {}
+        self.V = {}
+        self.S = {}
+        # static hyperparameters
+        self.learning_rate = learning_rate
+        self.keep_prob = keep_fact
         self.lambd = lambd
         self.epsilon = epsilon
-        self.exp_avg_grad, self.exp_avg_squared_grad = self.initialize_Adam()
+        self.beta1 = beta1
+        self.beta2 = beta2
+        # data set
         self.X = X
         self.Y = Y
-        self.caches = []
-        self.grads = {}
+        # some info
         self.nb_exemples = self.X.shape[1]
         self.debug = debug
-        self.keep_prob = keep_fact
 
-    def initialize_Adam(self):
 
-        v = {}
-        s = {}
-        for i in range(len(self.layer_dims)):
-            v["W" + str(i)] = np.zeros_like(self.parameters["W" + str(i)])
-            v["b" + str(i)] = np.zeros_like(self.parameters["b" + str(i)])
-            v["u" + str(i)] = np.zeros_like(self.parameters["u" + str(i)])
-            v["g" + str(i)] = np.zeros_like(self.parameters["g" + str(i)])
-            s["W" + str(i)] = np.zeros_like(self.parameters["W" + str(i)])
-            s["b" + str(i)] = np.zeros_like(self.parameters["b" + str(i)])
-            s["u" + str(i)] = np.zeros_like(self.parameters["u" + str(i)])
-            s["g" + str(i)] = np.zeros_like(self.parameters["g" + str(i)])
-        return v, s
 
-    def compute_cost(self, AL, Y):
-        m = Y.shape[1]
-        L2Reg = self.lambd / m * \
-                (np.sum(np.square(np.array([self.parameters["W" + str(i)] for i in range(1, self.nbLayers)]))))
-        cost = -1 / m * (Y.dot(AL.T) + (1 - Y)(np.log((1 - AL).T))) + L2Reg
-        cost = np.squeeze(cost)
-        ### log the cost
-        return cost
+
+
 
     def train(self):
+
+        params = self.parameters
+        grads  = {}
+        costs = []
         for i in range(1, self.nb_epoch):
-            ### randomly permutate examples in batche
-            minibatches = self.random_permutation(self.X, self.Y)
-            for (minibatch_X, minibatch_Y) in minibatches:
+
+            ### randomly permutate examples in batch
+            minibatches = random_permutation(self.X, self.Y)
+            p = len(minibatches)
+            for j, (minibatch_X, minibatch_Y) in enumerate(minibatches):
+
                 ### forward propagation
-                AL, caches = self.model_forward(minibatch_X)
+                AL, caches = self.model_forward(minibatch_X, params)
+
                 ###compute cost
-                cost = self.compute_cost(AL, minibatch_Y)
+                cost = compute_cost(AL, minibatch_Y, params, self.nb_layer)
                 if self.debug:
-                    utills.log(cost)
+                    k = int(j/p*100)
+                    t = "="*k
+                    s = '-'*(100-k)
+                    space = ' '*int((np.log(p)/np.log(10) - np.log(j)/np.log(10)))
+                    print(f"{j}/{p} {space} [{t}{s}] , cost = {cost}")
                 ###backward
-                self.grads = self.model_backward(AL, minibatch_Y)
+                grads = self.model_backward(AL, minibatch_Y)
                 ###update
                 self.parameters = self.update_parameters()
         return
@@ -76,21 +90,42 @@ class model(object):
 
 
 
-    def model_forward(self, X):
+    def model_forward(self, X, params):
+        """
 
+        :param X: The mini batch matrix
+        :param parameters: dictionary
+        :return: AL, caches
+        """
 
-    def model_backward(self, AL, Y):
+        L = self.nb_layer
+        caches = []
 
+        for i in range(1,L):
 
-    def linear_activation_forward(A_prev, W, b, activation="relu"):
+            line
 
-
-    def linear_activation_backward(dA, cache, activation):
-
+    def model_backward(self, AL, Y, caches):
+        return
 
     def gradient_checking(self):
         return
 
-    def update_parameters(self):
-        ## gradient
-        return
+    def update_parameters(self, params, grads,learning_rate):
+        """
+        This function uses gradient descent algorithm to compute the next
+            step gradient
+        :param grads: dictionary containing the gradiant of every parameter
+        :param layer_dims: list of number of units per layer
+        :param learning_rate: learning  rate
+        :return: the new params dictionary
+        """
+        L = self.nb_layer
+
+        for i in range(1, L):
+            # update step
+            params["W"+str(i)] -= learning_rate*grads["dW"+str(i)]
+            params["b"+str(i)] -= learning_rate*grads["db"+str(i)]
+
+
+        return params
