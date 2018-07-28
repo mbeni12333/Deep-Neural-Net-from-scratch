@@ -62,7 +62,7 @@ class model(object):
             minibatches = self.random_permutation(self.X, self.Y)
             for (minibatch_X, minibatch_Y) in minibatches:
                 ### forward propagation
-                AL, self.caches = self.model_forward(minibatch_X)
+                AL, caches = self.model_forward(minibatch_X)
                 ###compute cost
                 cost = self.compute_cost(AL, minibatch_Y)
                 if self.debug:
@@ -73,93 +73,20 @@ class model(object):
                 self.parameters = self.update_parameters()
         return
 
-    def test(self, test_x, test_y):
-        return
 
-    def random_permutation(self, X, Y):
-        minibatches = []
-        permutation = list(np.random.permutation(self.nb_exemples))
-        shuffled_X = X[:, permutation]
-        shuffled_Y = Y[:, permutation]
-        for i in range(0, self.nb_minibatches):
-            minibatch_X = shuffled_X[:, i * self.batch_size:(i + 1) * self.batch_size]
-            minibatch_Y = shuffled_Y[:, i * self.batch_size:(i + 1) * self.batch_size]
-            minibatch = (minibatch_X, minibatch_Y)
-            minibatches.append(minibatch)
-        if self.nb_exemples % self.batch_size != 0:
-            end = self.nb_exemples - self.batch_size * int(math.floor(self.nb_exemples / self.batch_size))
-            minibatch_X = shuffled_X[:, end:]
-            minibatch_Y = shuffled_Y[:, end:]
-            minibatch = (minibatch_X, minibatch_Y)
-            minibatches.append((minibatch))
-        return minibatches
 
-    def initialize_parameters(self, layer_dims):
-        ### improve initialization
-        params = {}
-        L = len(layer_dims)
-        for i in range(1, L):
-            ### he initialization
-            params["W" + str(i)] = np.random.randn(layer_dims[i], layer_dims[i - 1]) * np.sqrt(
-                2 / self.layer_dims[i - 1])
-            params["b" + str(i)] = np.zeros((layer_dims[i], 1))
-        return params
-
-    def load_model(self, file_location='/model.weights'):
-        return
-
-    def save_model(self):
-        return
 
     def model_forward(self, X):
-        A = X
-        caches = []
-        for i in range(self.nb_layer):
-            A_prev = A
-            W, b = self.parameters["W" + str(i)], self.parameters["b" + str(i)]
-            A, Z = self.linear_activation_forward(A_prev, W, b, "ReLu")
-            D = np.random.rand(A.shape[0], A.shape[1])
-            D = D < self.keep_prob
-            A = A * D
-            A = A / self.keep_prob
-            caches.append(Z, D, A)
-        WL, bL = self.parameters["W" + str(self.nb_layer)], self.parameters["b" + str(self.nb_layer)]
-        AL, Z = self.linear_activation_forward(A, WL, bL, "sigmoid")
-        caches.append((Z, D, AL))
-        return AL, caches
+
 
     def model_backward(self, AL, Y):
-        grads = {}
-        l = self.nb_layer
-        dAL = -(np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
-        current_cache = self.caches[l - 1]
-        grads["dA" + str(l - 1)], grads["dW" + str(l - 1)], grads["db" + str(l - 1)] = self.linear_activation_backward(
-            dAL,
-            current_cache,
-            "sigmoid")
-        for i in reversed(range(l - 1)):
-            current_cache = self.caches[i]
-            grads["dA" + str(l)], grads["dW" + str(l + 1)], grads["db" + str(l + 1)] = self.linear_activation_backward(
-                grads["dA" + str(i + 1)], current_cache, "ReLu")
-        return grads
 
-    def linear_activation_forward(self, A_prev, W, b, activation="ReLu"):
-        Z = W.dot(A_prev) + b
-        if activation == "ReLU":
-            A = utills.relu(Z)
-        if activation == "Sigmoid":
-            A = utills.sigmoid(Z)
-        return A, Z
 
-    def linear_activation_backward(self, dA, cache, activation):
-        linear_cache, D, activation_cache = cache
-        if activation == "ReLu":
-            dZ = utills.relu_backward(dA, activation_cache)
-        elif activation == "sigmoid":
-            dZ = utills.sigmoid_backward(dA, activation_cache)
-        dA_prev, dW, db = utills.linear_backward(dZ, linear_cache)
-        dW = dW * D
-        return dA_prev, dW, db
+    def linear_activation_forward(A_prev, W, b, activation="relu"):
+
+
+    def linear_activation_backward(dA, cache, activation):
+
 
     def gradient_checking(self):
         return
