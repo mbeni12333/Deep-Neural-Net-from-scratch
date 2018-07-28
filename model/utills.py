@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+
 import seaborn
 plt.style.use('seaborn')
 def initialize_parameters(layer_dims, debug=False):
@@ -21,7 +22,10 @@ def initialize_parameters(layer_dims, debug=False):
         # params W and b
         params["W"+str(i)] = np.random.randn(layer_dims[i], layer_dims[i-1])*he
         params["b"+str(i)] = np.zeros((layer_dims[i], 1))
-
+    if debug:
+        for i,j in params.items():
+            print(f"{i}, "
+                  f"value = \n{j}")
     # return the dictionary
     return params
 
@@ -56,7 +60,7 @@ def compute_cost(AL, Y, parameters, nbLayers, lambd=0):
     :return: the cost
     """
     m = Y.shape[1]
-    print(f"m = {m}")
+    #print(f"m = {m}")
     L2Reg = lambd / m *\
             np.sum(np.array([(np.sum(np.square(parameters["W" + str(i)]))) for i in range(1, nbLayers)]))
 
@@ -71,7 +75,7 @@ def compute_cost(AL, Y, parameters, nbLayers, lambd=0):
     # return the cost
     return cost
 
-def random_permutation(X, Y, minibatch_size=128, debug=False):
+def random_permutation(X, Y, minibatch_size=12, debug=False):
     """
     This function takes for parameter some data and it returnes a list of
         minibatches (x, y) randomly permuted
@@ -192,7 +196,9 @@ def relu_backward(dA, cache):
     dZ = np.array(dA, copy=True) #so we basicly just copy dA
 
     # we don't forget to make the derivative 0 as well when it's 0
-    dZ[cache < 0] = 0
+    Z = cache
+
+    dZ[Z <= 0] = 0
 
     # return the derivative
 
@@ -290,10 +296,26 @@ def linear_forwrd(A_prev, W, b):
     #return the stuff
     return Z, cache
 
-if __name__ == "__main__":
+def plot_decision_boundary(model, X, y):
+    # Set min and max values and give it some padding
+    x_min, x_max = X[0, :].min() - 1, X[0, :].max() + 1
+    y_min, y_max = X[1, :].min() - 1, X[1, :].max() + 1
+    h = 0.01
+    # Generate a grid of points with distance h between them
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+    # Predict the function value for the whole grid
+    Z = model(np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+    # Plot the contour and training examples
+    plt.contourf(xx, yy, Z, cmap=plt.cm.Spectral)
+    plt.ylabel('x2')
+    plt.xlabel('x1')
+    plt.scatter(X[0, :], X[1, :], c=y, cmap=plt.cm.Spectral)
+    plt.show()
+#if __name__ == "__main__":
 
-    np.random.seed(0)
-    kwargs = dict(histtype='stepfilled', alpha=0.3, normed=True, bins=50)
+    #np.random.seed(0)
+    #kwargs = dict(histtype='stepfilled', alpha=0.3, normed=True, bins=50)
 
     # test case for random permutation
     #x = np.random.randn(4,1300)
