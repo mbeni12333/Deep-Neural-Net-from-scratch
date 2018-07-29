@@ -1,169 +1,241 @@
-import math
-import numpy as np
-
-from . import utills
-
+from utills import *
+import sklearn.datasets as sk
+from sklearn.model_selection import train_test_split
 
 class model(object):
     """
-        put ome tet in here
+        This model creates a L layer Neural Network
+
     """
 
     def __init__(self, X, Y, layers_dims=[1], learning_rate=0.1,
-                 beta1=0.9, beta2=0.99, learning_rate_decay=1,
-                 batch_size=64, epoch=3000, lambd=0,
-                 epsilon=1e-7, keep_fact=1, debug=False,
+                 beta1=0.9, beta2=0.99,batch_size=64, epoch=100, lambd=0,
+                 epsilon=1e-7, keep_fact=1, debug=True,
                  log_file='', load_weights=''):
-        self.learning_rate = learning_rate
+        """
+        This function initializes all attributes of this model
+
+        :param X: training data
+        :param Y: training data labels
+        :param layers_dims: list of number unit par layer
+        :param learning_rate: rate of learning during gradient descent
+        :param beta1: momentum, rmsprop factor
+        :param beta2: adam factor
+        :param batch_size: size of bacthe
+        :param epoch: number of training episodes
+        :param lambd: L2 regularization
+        :param epsilon: small number to avoid dividing by zero
+        :param keep_fact: dropout regularization , list of percentage of keep for each layer
+        :param debug: debug
+        :param log_file: where to save logs
+        :param load_weights: path to save model to
+        """
+
+
+        # architecture
         self.layer_dims = layers_dims.insert(0, X.shape[0])
         self.nb_layer = len(layers_dims)
         self.batch_size = batch_size
-        self.nb_minibatches = int(math.floor(X.shape[1] / self.batch_size))
-        self.parameters = self.initialize_parameters(layers_dims)
         self.nb_epoch = epoch
+        # learnable parameters
+        self.parameters = initialize_parameters(layers_dims)
+        self.V = {}
+        self.S = {}
+        # static hyperparameters
+        self.learning_rate = learning_rate
+        self.keep_prob = keep_fact
         self.lambd = lambd
         self.epsilon = epsilon
-        self.exp_avg_grad, self.exp_avg_squared_grad = self.initialize_Adam()
+        self.beta1 = beta1
+        self.beta2 = beta2
+        # data set
         self.X = X
         self.Y = Y
-        self.caches = []
-        self.grads = {}
+        # some info
         self.nb_exemples = self.X.shape[1]
         self.debug = debug
-        self.keep_prob = keep_fact
 
-    def initialize_Adam(self):
 
-        v = {}
-        s = {}
-        for i in range(len(self.layer_dims)):
-            v["W" + str(i)] = np.zeros_like(self.parameters["W" + str(i)])
-            v["b" + str(i)] = np.zeros_like(self.parameters["b" + str(i)])
-            v["u" + str(i)] = np.zeros_like(self.parameters["u" + str(i)])
-            v["g" + str(i)] = np.zeros_like(self.parameters["g" + str(i)])
-            s["W" + str(i)] = np.zeros_like(self.parameters["W" + str(i)])
-            s["b" + str(i)] = np.zeros_like(self.parameters["b" + str(i)])
-            s["u" + str(i)] = np.zeros_like(self.parameters["u" + str(i)])
-            s["g" + str(i)] = np.zeros_like(self.parameters["g" + str(i)])
-        return v, s
 
-    def compute_cost(self, AL, Y):
-        m = Y.shape[1]
-        L2Reg = self.lambd / m * \
-                (np.sum(np.square(np.array([self.parameters["W" + str(i)] for i in range(1, self.nbLayers)]))))
-        cost = -1 / m * (Y.dot(AL.T) + (1 - Y)(np.log((1 - AL).T))) + L2Reg
-        cost = np.squeeze(cost)
-        ### log the cost
-        return cost
 
-    def train(self):
+
+
+    def train(self, learning_rate):
+
+        params = self.parameters
+        pa = []
+        grads  = {}
+        costs = []
         for i in range(1, self.nb_epoch):
-            ### randomly permutate examples in batche
-            minibatches = self.random_permutation(self.X, self.Y)
-            for (minibatch_X, minibatch_Y) in minibatches:
+
+            ### randomly permutate examples in batch
+            minibatches = random_permutation(self.X, self.Y)
+            p = self.nb_epoch
+            for j, (minibatch_X, minibatch_Y) in enumerate(minibatches):
+
                 ### forward propagation
-                AL, self.caches = self.model_forward(minibatch_X)
+                AL, caches = self.model_forward(minibatch_X, params)
+
                 ###compute cost
-                cost = self.compute_cost(AL, minibatch_Y)
-                if self.debug:
-                    utills.log(cost)
+                cost = compute_cost(AL, minibatch_Y, params, self.nb_layer)
+                costs.append(cost)
                 ###backward
-                self.grads = self.model_backward(AL, minibatch_Y)
+                grads = self.model_backward(AL, minibatch_Y, caches)
+                #if self.debug:
+                #    for i in grads.keys():
+                #        print(f"{i}")
                 ###update
-                self.parameters = self.update_parameters()
-        return
+                self.parameters = self.update_parameters(self.parameters,grads,learning_rate)
+                pa.append(self.parameters)
 
-    def test(self, test_x, test_y):
-        return
+            if self.debug:
+                k = int(i/p*100/2)
+                t = "="*k
+                s = '-'*(50-k)
+                space = ' '*int((np.log(p)/np.log(10) - np.log(i+1)/np.log(10)))
+                print(f"{i}/{self.nb_epoch} {space} [{t}>{s}] , cost = {cost}")
+        return costs, pa
 
-    def random_permutation(self, X, Y):
-        minibatches = []
-        permutation = list(np.random.permutation(self.nb_exemples))
-        shuffled_X = X[:, permutation]
-        shuffled_Y = Y[:, permutation]
-        for i in range(0, self.nb_minibatches):
-            minibatch_X = shuffled_X[:, i * self.batch_size:(i + 1) * self.batch_size]
-            minibatch_Y = shuffled_Y[:, i * self.batch_size:(i + 1) * self.batch_size]
-            minibatch = (minibatch_X, minibatch_Y)
-            minibatches.append(minibatch)
-        if self.nb_exemples % self.batch_size != 0:
-            end = self.nb_exemples - self.batch_size * int(math.floor(self.nb_exemples / self.batch_size))
-            minibatch_X = shuffled_X[:, end:]
-            minibatch_Y = shuffled_Y[:, end:]
-            minibatch = (minibatch_X, minibatch_Y)
-            minibatches.append((minibatch))
-        return minibatches
 
-    def initialize_parameters(self, layer_dims):
-        ### improve initialization
-        params = {}
-        L = len(layer_dims)
-        for i in range(1, L):
-            ### he initialization
-            params["W" + str(i)] = np.random.randn(layer_dims[i], layer_dims[i - 1]) * np.sqrt(
-                2 / self.layer_dims[i - 1])
-            params["b" + str(i)] = np.zeros((layer_dims[i], 1))
-        return params
 
-    def load_model(self, file_location='/model.weights'):
-        return
 
-    def save_model(self):
-        return
+    def model_forward(self, X, params):
+        """
 
-    def model_forward(self, X):
-        A = X
+        :param X: The mini batch matrix
+        :param parameters: dictionary
+        :return: AL, caches
+        """
+
+        L = self.nb_layer
         caches = []
-        for i in range(self.nb_layer):
+        A = X
+        for i in range(1,L-1):
+            # variables
             A_prev = A
-            W, b = self.parameters["W" + str(i)], self.parameters["b" + str(i)]
-            A, Z = self.linear_activation_forward(A_prev, W, b, "ReLu")
-            D = np.random.rand(A.shape[0], A.shape[1])
-            D = D < self.keep_prob
-            A = A * D
-            A = A / self.keep_prob
-            caches.append(Z, D, A)
-        WL, bL = self.parameters["W" + str(self.nb_layer)], self.parameters["b" + str(self.nb_layer)]
-        AL, Z = self.linear_activation_forward(A, WL, bL, "sigmoid")
-        caches.append((Z, D, AL))
+            W = params["W"+str(i)]
+            b = params["b"+str(i)]
+
+            # the forward step
+            A, cache = linear_activation_forward(A_prev, W, b, 'relu')
+            # store curernt cache to use it later
+            caches.append(cache)
+
+        # variables
+        WL = params["W"+str(L-1)]
+        bL = params["b"+str(L-1)]
+
+        # forward step
+        AL, cache = linear_activation_forward(A, WL, bL, 'sigmoid')
+        caches.append(cache)
+
         return AL, caches
+    def model_backward(self, AL, Y, caches):
+        """
+        This function calculate gradient using backpropagation algorithm
 
-    def model_backward(self, AL, Y):
+        :param AL: last layer
+        :param Y: expected output
+        :param caches: list of caches
+        :return: grads
+        """
+        L = len(caches)
+        #print(f"L is {L}")
         grads = {}
-        l = self.nb_layer
-        dAL = -(np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
-        current_cache = self.caches[l - 1]
-        grads["dA" + str(l - 1)], grads["dW" + str(l - 1)], grads["db" + str(l - 1)] = self.linear_activation_backward(
-            dAL,
-            current_cache,
-            "sigmoid")
-        for i in reversed(range(l - 1)):
-            current_cache = self.caches[i]
-            grads["dA" + str(l)], grads["dW" + str(l + 1)], grads["db" + str(l + 1)] = self.linear_activation_backward(
-                grads["dA" + str(i + 1)], current_cache, "ReLu")
+
+        #initialize backprop
+        dAL = -(np.divide(Y, AL) -  np.divide(1-Y, 1-AL))
+        current_cache = caches[L-1]
+
+        dA, dW, db = linear_activation_backward(dAL, current_cache, 'sigmoid')
+
+        grads['dA'+str(L-1)] = dA
+        grads['dW'+str(L)] = dW
+        grads["db"+str(L)] = db
+
+        for i in reversed(range(L-1)):
+
+            current_cache = caches[i]
+            #print(f"Current cache : {i}")
+            dA, dW, db = linear_activation_backward(dA, current_cache, 'relu')
+
+            grads['dA' + str(i)] = dA
+            grads['dW' + str(i+1)] = dW
+            grads["db" + str(i+1)] = db
+
         return grads
-
-    def linear_activation_forward(self, A_prev, W, b, activation="ReLu"):
-        Z = W.dot(A_prev) + b
-        if activation == "ReLU":
-            A = utills.relu(Z)
-        if activation == "Sigmoid":
-            A = utills.sigmoid(Z)
-        return A, Z
-
-    def linear_activation_backward(self, dA, cache, activation):
-        linear_cache, D, activation_cache = cache
-        if activation == "ReLu":
-            dZ = utills.relu_backward(dA, activation_cache)
-        elif activation == "sigmoid":
-            dZ = utills.sigmoid_backward(dA, activation_cache)
-        dA_prev, dW, db = utills.linear_backward(dZ, linear_cache)
-        dW = dW * D
-        return dA_prev, dW, db
 
     def gradient_checking(self):
         return
 
-    def update_parameters(self):
-        ## gradient
-        return
+    def update_parameters(self, params, grads,learning_rate):
+        """
+        This function uses gradient descent algorithm to compute the next
+            step gradient
+        :param grads: dictionary containing the gradiant of every parameter
+        :param layer_dims: list of number of units per layer
+        :param learning_rate: learning  rate
+        :return: the new params dictionary
+        """
+        L = self.nb_layer
+
+        for i in range(1, L):
+            # update step
+            params["W"+str(i)] -= learning_rate*grads["dW"+str(i)]
+            params["b"+str(i)] -= learning_rate*grads["db"+str(i)]
+
+
+        return params
+    def predict(self, X,Y,  parameters):
+
+        m = X.shape[1]
+        n = len(parameters) // 2
+        p = np.zeros((1, m))
+
+        # Forward propagation
+        probas, caches = self.model_forward(X, parameters)
+
+
+        for i in range(0, probas.shape[1]):
+            if probas[0, i] > 0.5:
+                p[0, i] = 1
+            else:
+                p[0, i] = 0
+
+
+        print("Accuracy: " + str(np.sum((p == Y) / m)))
+
+        return p
+
+    def predict_dec(self, parameters, X):
+        """
+        Used for plotting decision boundary.
+
+        Arguments:
+        parameters -- python dictionary containing your parameters
+        X -- input data of size (m, K)
+
+        Returns
+        predictions -- vector of predictions of our model (red: 0 / blue: 1)
+        """
+
+        # Predict using forward propagation and a classification threshold of 0.5
+        a3, cache = self.model_forward(X, parameters)
+        predictions = (a3 > 0.5)
+        return predictions
+
+if __name__ == '__main__':
+
+   X, Y = sk.make_moons(n_samples=100,noise=0.15)
+   X_train , X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3)
+   X_train = X_train.T
+   Y_train = Y_train.reshape(Y_train.shape[0], 1).T
+
+   print(f"train shape X : {X_train.shape}, Y : {Y_train.shape}")
+
+   simple_model = model(X_train, Y_train, [100,40,20,1], epoch=100)
+   input('press enter')
+   costs, params = simple_model.train(learning_rate=0.01)
+   plt.plot(np.arange(0, len(costs), 1), np.array(costs))
+   plt.show()
+   plot_decision_boundary(lambda x: simple_model.predict_dec(parameters=simple_model.parameters, X=x.T), X_train, Y_train)

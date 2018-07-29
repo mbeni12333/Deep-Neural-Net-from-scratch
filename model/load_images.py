@@ -66,19 +66,21 @@ def load_image_dataset(path):
             X = np.concatenate((X,img), axis=1)
             Y.append(j)
     Y = np.array(Y).reshape(1, len(Y))
+    X = X[:,1:]
     print(f"X is a shape of {X.shape}")
     print(f"trainning examples : {X.shape[1]}")
     permutation = np.random.permutation(50)
     X_shuffled = X[:, permutation]
     Y_shuffled = Y[:, permutation]
     fig2 = plt.figure(figsize=(8,8))
-    for i in range(1,26):
-        img2 = ((X_shuffled[:,i]- np.mean(X_shuffled, axis=1))/np.std(X_shuffled, axis=1)).reshape(64,64,3)
-        ax2 = fig2.add_subplot(5, 5, i, xticks=[], yticks=[])
-        ax2.set_title(classes[int(Y_shuffled[:, i])])
-        ax2.imshow(img2)
+    #for i in range(1,26):
+    #    img2 = ((X_shuffled[:,i]- np.mean(X_shuffled, axis=1))/np.std(X_shuffled, axis=1)).reshape(64,64,3)
+    #    ax2 = fig2.add_subplot(5, 5, i, xticks=[], yticks=[])
+    #    ax2.set_title(classes[int(Y_shuffled[:, i])])
+    #    ax2.imshow(img2)
 
-    plt.show()
+    #plt.show()
 
+    return X, Y
 if __name__ == '__main__':
     load_fake_data(None)
