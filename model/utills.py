@@ -1,10 +1,10 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-
+from matplotlib import animation as anim
 import seaborn
 plt.style.use('seaborn')
-def initialize_parameters(layer_dims, debug=False):
+def initialize_parameters(layer_dims, debug=False, h=0):
     """
     This function initializes each layers weights and bayes
         and other params in the future, and returns a dictionary
@@ -18,36 +18,39 @@ def initialize_parameters(layer_dims, debug=False):
 
     for i in range(1, nb_layers):
         # He initilization
-        he = np.sqrt(2/layer_dims[i-1])
+        he = np.sqrt(2/layer_dims[i-1])*(1-h) + h
         # params W and b
         params["W"+str(i)] = np.random.randn(layer_dims[i], layer_dims[i-1])*he
         params["b"+str(i)] = np.zeros((layer_dims[i], 1))
+
+    V, S = initialize_Adam(nb_layers, params)
+
     if debug:
         for i,j in params.items():
             print(f"{i}, "
                   f"value = \n{j}")
     # return the dictionary
-    return params
+    return params, V, S
 
 def initialize_Adam(nb_layer, parameters):
 
     v = {}
     s = {}
 
-    for i in range(nb_layer):
+    for i in range(1, nb_layer):
 
         v["W" + str(i)] = np.zeros_like(parameters["W" + str(i)])
         v["b" + str(i)] = np.zeros_like(parameters["b" + str(i)])
-        v["u" + str(i)] = np.zeros_like(parameters["u" + str(i)])
-        v["g" + str(i)] = np.zeros_like(parameters["g" + str(i)])
+        #v["u" + str(i)] = np.zeros_like(parameters["u" + str(i)])
+        #v["g" + str(i)] = np.zeros_like(parameters["g" + str(i)])
         s["W" + str(i)] = np.zeros_like(parameters["W" + str(i)])
         s["b" + str(i)] = np.zeros_like(parameters["b" + str(i)])
-        s["u" + str(i)] = np.zeros_like(parameters["u" + str(i)])
-        s["g" + str(i)] = np.zeros_like(parameters["g" + str(i)])
+        #s["u" + str(i)] = np.zeros_like(parameters["u" + str(i)])
+        #s["g" + str(i)] = np.zeros_like(parameters["g" + str(i)])
 
     return v, s
 
-def compute_cost(AL, Y, parameters, nbLayers, lambd=0):
+def compute_cost(AL, Y, parameters, nbLayers, lambd=0.1):
     """
     This function calculate the cost given the last layer activation and
         actual labels
@@ -61,7 +64,7 @@ def compute_cost(AL, Y, parameters, nbLayers, lambd=0):
     """
     m = Y.shape[1]
     #print(f"m = {m}")
-    L2Reg = lambd / m *\
+    L2Reg = lambd / (2*m) *\
             np.sum(np.array([(np.sum(np.square(parameters["W" + str(i)]))) for i in range(1, nbLayers)]))
 
     log_sum = np.sum(np.multiply(Y, np.log(AL)))
@@ -166,6 +169,10 @@ def sigmoid_backward(dA, cache):
     # return the derivative
 
     return dZ
+def softmax(Z):
+
+
+    return
 
 def relu(Z):
     """
@@ -181,7 +188,7 @@ def relu(Z):
     # return the stuff
     return A, activation_cache
 
-def relu_backward(dA, cache):
+def relu_backward(dA, cache, debug=False):
     """
     This function calculates the derivative of the activation with respect of z
 
@@ -197,14 +204,15 @@ def relu_backward(dA, cache):
 
     # we don't forget to make the derivative 0 as well when it's 0
     Z = cache
-
-    dZ[Z <= 0] = 0
+    if debug:
+        print(f"dZ min = {Z < 0})")
+    dZ[Z < 0] = 0
 
     # return the derivative
 
     return dZ
 
-def linear_backward(dZ, cache):
+def linear_backward(dZ, cache, lambd=0.1):
     """
     This function calculate the derivative of the linear activation with respect
         to A_prev, W, b ..
@@ -218,7 +226,7 @@ def linear_backward(dZ, cache):
     A_prev, W, b  = cache
     m = A_prev.shape[1]
     # calculate the derivatives
-    dW = 1./m*dZ.dot(A_prev.T)
+    dW = 1./m*(dZ.dot(A_prev.T) + lambd*np.sum(W))
 
     db = 1./m*np.sum(dZ, axis=1, keepdims=True)
 
@@ -232,7 +240,7 @@ def linear_backward(dZ, cache):
     # return the hole thing
     return dA_prev, dW, db
 
-def linear_activation_backward(dA, cache, activation='relu'):
+def linear_activation_backward(dA, cache, activation='relu', lambd=0.1):
     """
     This function calculates teh derivative block activation and linear
 
@@ -252,7 +260,7 @@ def linear_activation_backward(dA, cache, activation='relu'):
     else:
         print("not implemented exception")
     # use the linear backward module
-    dA_prev, dW, db = linear_backward(dZ, linear_cache)
+    dA_prev, dW, db = linear_backward(dZ, linear_cache, lambd)
 
     # returning the gradients
 
@@ -296,22 +304,26 @@ def linear_forwrd(A_prev, W, b):
     #return the stuff
     return Z, cache
 
-def plot_decision_boundary(model, X, y):
+def plot_decision_boundary(model, X, y, i, path):
     # Set min and max values and give it some padding
     x_min, x_max = X[0, :].min() - 1, X[0, :].max() + 1
     y_min, y_max = X[1, :].min() - 1, X[1, :].max() + 1
     h = 0.01
+    f = plt.figure()
+    ff = f.gca()
     # Generate a grid of points with distance h between them
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
     # Predict the function value for the whole grid
     Z = model(np.c_[xx.ravel(), yy.ravel()])
     Z = Z.reshape(xx.shape)
     # Plot the contour and training examples
-    plt.contourf(xx, yy, Z, cmap=plt.cm.Spectral)
-    plt.ylabel('x2')
-    plt.xlabel('x1')
-    plt.scatter(X[0, :], X[1, :], c=y, cmap=plt.cm.Spectral)
-    plt.show()
+    ff.contourf(xx, yy, Z, cmap=plt.cm.viridis)
+
+    ff.scatter(X[0, :], X[1, :], c=y, cmap=plt.cm.plasma)
+
+    f.savefig(path+'/'+str(i)+'.png')  # save the figure to file
+    plt.close(f)
+
 #if __name__ == "__main__":
 
     #np.random.seed(0)
