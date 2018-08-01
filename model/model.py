@@ -88,12 +88,14 @@ class model(object):
                 #        print(f"{i}")
                 ###update
                 params, self.V, self.S = self.update_parameters(params,self.V, self.S, grads,learning_rate, self.beta1, self.beta2)
-                plot_decision_boundary(lambda x: simple_model.predict_dec(parameters=params, X=x.T), self.X, self.Y, k, self.logf)
+
+                #plot_decision_boundary(lambda x: simple_model.predict_dec(parameters=params, X=x.T), self.X, self.Y, k, self.logf)
                 k = k+1
+                #print(f"k = {k}")
             if self.debug:
-                k = int(i/p*100/2)
-                t = "="*k
-                s = '-'*(50-k)
+                u = int(i/p*100/2)
+                t = "="*u
+                s = '-'*(50-u)
                 space = ' '*int((np.log(p)/np.log(10) - np.log(i+1)/np.log(10)))
                 print(f"{i}/{self.nb_epoch} {space} [{t}>{s}] , cost = {cost}")
             #print(f"pa = {pa}")
@@ -132,7 +134,7 @@ class model(object):
         bL = params["b"+str(L-1)]
 
         # forward step
-        AL, cache = linear_activation_forward(A, WL, bL, 'sigmoid')
+        AL, cache = linear_activation_forward(A, WL, bL, 'softmax')
         caches.append(cache)
 
         return AL, caches
@@ -150,10 +152,11 @@ class model(object):
         grads = {}
 
         #initialize backprop
-        dAL = -(np.divide(Y, AL) -  np.divide(1-Y, 1-AL))
+        dZL = AL - Y
+
         current_cache = caches[L-1]
 
-        dA, dW, db = linear_activation_backward(dAL, current_cache, 'sigmoid', lambd)
+        dA, dW, db = linear_backward(dZL, current_cache[0],lambd)
 
         grads['dA'+str(L-1)] = dA
         grads['dW'+str(L)] = dW
@@ -217,14 +220,11 @@ class model(object):
         probas, caches = self.model_forward(X, parameters)
 
 
-        for i in range(0, probas.shape[1]):
-            if probas[0, i] > 0.5:
-                p[0, i] = 1
-            else:
-                p[0, i] = 0
+        probas = np.argmax(probas, axis=0)
 
+        Y = np.argmax(Y, axis=0)
 
-        print("Accuracy: " + str(np.sum((p == Y) / m)))
+        print("Accuracy: " + str(np.sum((p == Y)) / m))
 
         return p
 
@@ -242,32 +242,41 @@ class model(object):
 
         # Predict using forward propagation and a classification threshold of 0.5
         a3, cache = self.model_forward(X, parameters)
-        predictions = (a3 > 0.5)
+        predictions = np.argmax(a3, axis=0)
         return predictions
 
 
 
 if __name__ == '__main__':
 
-   X, Y = sk.make_moons(n_samples=4000, noise=.1)
-   X_train , X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3)
+   X, Y = sk.make_blobs(n_samples=5000, centers=5, cluster_std=2, center_box=(-20.0, 20.0))
+   X_train , X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
    X_train = X_train.T
-   Y_train = Y_train.reshape(Y_train.shape[0], 1).T
+   Y_train = Y_train.reshape(-1).T
+   Y_train = np.eye(5)[Y_train].T
    X_test = X_test.T
-   Y_test = Y_test.reshape(Y_test.shape[0], 1).T
+   Y_test = Y_test.reshape(-1).T
+   Y_test = np.eye(5)[Y_test].T
+
+   x_min, x_max = X[0, :].min() - 1, X[0, :].max() + 1
+   y_min, y_max = X[1, :].min() - 1, X[1, :].max() + 1
 
    f = plt.figure()
    f = f.gca()
+
+
+
    print(f"train shape X : {X_train.shape}, Y : {Y_train.shape}")
    np.random.seed(0)
-   simple_model = model(X_train, Y_train, [20,20,20,1],batch_size=256, epoch=10, lambd=0.01, beta1=0.9, beta2=0.995)
+   simple_model = model(X_train, Y_train, [5,5,5],batch_size=256, epoch=2000, lambd=0.1, beta1=0.9, beta2=0.999)
+
    input('press enter')
    costs= simple_model.train(learning_rate=0.01)
    _ = simple_model.predict(X_test, Y_test, simple_model.parameters)
    f.plot(np.arange(0, len(costs), 1), np.array(costs))
 
    #print(f"is it ?  : {params[5] == params[2]}")
-
+   plot_decision_boundary(lambda x: simple_model.predict_dec(parameters=simple_model.parameters, X=x.T), X_train, Y_train, 10000, os.getcwd()+'/logs')
 
    #a = anim.FuncAnimation(ff2, animate, frames=2)
    #a.save('animation.mp4', fps=30)

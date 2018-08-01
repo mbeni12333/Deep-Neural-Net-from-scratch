@@ -172,7 +172,10 @@ def sigmoid_backward(dA, cache):
 def softmax(Z):
 
 
-    return
+    e_x = np.exp(Z - np.max(Z))
+    s = e_x / e_x.sum(axis=0)
+
+    return s, Z
 
 def relu(Z):
     """
@@ -282,6 +285,8 @@ def linear_activation_forward(A_prev, W, b,  activation='relu'):
         A, activation_cache = relu(Z)
     elif activation == 'sigmoid':
         A, activation_cache = sigmoid(Z)
+    elif activation == 'softmax':
+        A, activation_cache = softmax(Z)
 
     cache = linear_cache, activation_cache
 
@@ -308,6 +313,7 @@ def plot_decision_boundary(model, X, y, i, path):
     # Set min and max values and give it some padding
     x_min, x_max = X[0, :].min() - 1, X[0, :].max() + 1
     y_min, y_max = X[1, :].min() - 1, X[1, :].max() + 1
+    y = np.argmax(y, axis=0).reshape(-1, 1)
     h = 0.01
     f = plt.figure()
     ff = f.gca()
@@ -317,9 +323,9 @@ def plot_decision_boundary(model, X, y, i, path):
     Z = model(np.c_[xx.ravel(), yy.ravel()])
     Z = Z.reshape(xx.shape)
     # Plot the contour and training examples
-    ff.contourf(xx, yy, Z, cmap=plt.cm.viridis)
+    ff.contourf(xx, yy, Z, cmap=plt.cm.viridis, alpha=0.6)
 
-    ff.scatter(X[0, :], X[1, :], c=y, cmap=plt.cm.plasma)
+    ff.scatter(X[0, :], X[1, :], c=y, cmap=plt.cm.viridis)
 
     f.savefig(path+'/'+str(i)+'.png')  # save the figure to file
     plt.close(f)
@@ -378,3 +384,7 @@ def plot_decision_boundary(model, X, y, i, path):
     #cost = compute_cost(AL, Y, {"W1":np.random.randn(5,2), "W2":np.random.randn(1,5)}, nbLayers=3)
 
     #print(f"Cost is {cost}, AL shape = {AL.shape}")
+
+    ## test case softmax :
+    #z = np.array([1.0, 2.0, 3.0, 4.0, 1.0])
+    #print(softmax(z))
